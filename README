@@ -14,14 +14,13 @@ Added support for ios 8
 You MUST edit dumpdecrypted.c file before make
 You need to manually find the application data path in /private/var/mobile/Containers/Data/Application/XXXX
 After editing dumpdecrypted.c file
-```make
+
+make
 scp dumpdecrypted.dylib root@192.168.1.106:/var/root
-```
-Then ssh to iphone
-```
+//Then ssh to iphone
 ssh root@192.168.1.106
 iPhone:~ root# DYLD_INSERT_LIBRARIES=/var/root/dumpdecrypted.dylib /var/mobile/Containers/Bundle/Application/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/Scan.app/Scan mach-o decryption dumper
-```
+
 DISCLAIMER: This tool is only meant for security research purposes, not for application crackers.
 
 [+] Found encrypted data at address 00002000 of length 1826816 bytes - type 1.

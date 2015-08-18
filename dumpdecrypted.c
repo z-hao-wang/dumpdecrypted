@@ -3,20 +3,20 @@
 Dumps decrypted iPhone Applications to a file - better solution than those GDB scripts for non working GDB versions
 (C) Copyright 2011-2014 Stefan Esser
 
-iPod:~ root# DYLD_INSERT_LIBRARIES=dumpdecrypted.dylib /var/mobile/Applications/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/Scan.app/Scan
+iPod:~ root# DYLD_INSERT_LIBRARIES=dumpdecrypted.dylib /var/mobile/Containers/Bundle/Application/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/Scan.app/Scan
 mach-o decryption dumper
 
 DISCLAIMER: This tool is only meant for security research purposes, not for application crackers.
 
 [+] Found encrypted data at address 00002000 of length 1826816 bytes - type 1.
-[+] Opening /private/var/mobile/Applications/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/Scan.app/Scan for reading.
+[+] Opening /var/mobile/Containers/Bundle/Application/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/Scan.app/Scan for reading.
 [+] Reading header
 [+] Detecting header type
 [+] Executable is a FAT image - searching for right architecture
 [+] Correct arch is at offset 2408224 in the file
 [+] Opening Scan.decrypted for writing.
 [-] Failed opening. Most probably a sandbox issue. Trying something different.
-[+] Opening /private/var/mobile/Applications/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/tmp/Scan.decrypted for writing.
+[+] Opening /var/mobile/Containers/Bundle/Application/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/tmp/Scan.decrypted for writing.
 [+] Copying the not encrypted start of the file
 [+] Dumping the decrypted data into the file
 [+] Copying the not encrypted remainder of the file
@@ -41,6 +41,16 @@ struct ProgramVars {
 };
 
 #define swap32(value) (((value & 0xFF000000) >> 24) | ((value & 0x00FF0000) >> 8) | ((value & 0x0000FF00) << 8) | ((value & 0x000000FF) << 24) )
+// ios 8 bundle located at: /private/var/mobile/Containers/Bundle/Application/
+// ios 8 must specify OVERRIDE_PATH and USE_OVERRIDE_PATH = 1
+// You need to manually find the application path in /private/var/mobile/Containers/Data/Application
+// you can try command find /private/var/mobile/Containers/Data/Application/ -name "appname"
+static const char OVERRIDE_PATH[] = "/private/var/mobile/Containers/Data/Application/76E2F63C-FE7C-4DFB-A428-205614127FE9/tmp/dump.decrypt";
+static const int USE_OVERRIDE_PATH = 1;
+
+// to support ios 7
+const char APPLICATION_PATH[] = "/private/var/mobile/Applications/";
+
 
 __attribute__((constructor))
 void dumptofile(int argc, const char **argv, const char **envp, const char **apple, struct ProgramVars *pvars)
@@ -137,25 +147,28 @@ void dumptofile(int argc, const char **argv, const char **envp, const char **app
 			strlcpy(npath, tmp+1, sizeof(npath));
 			strlcat(npath, ".decrypted", sizeof(npath));
 			strlcpy(buffer, npath, sizeof(buffer));
-
+      if (USE_OVERRIDE_PATH > 0) {
+					strlcpy(npath, OVERRIDE_PATH, sizeof(npath));
+			}
 			printf("[+] Opening %s for writing.\n", npath);
 			outfd = open(npath, O_RDWR|O_CREAT|O_TRUNC, 0644);
 			if (outfd == -1) {
-				if (strncmp("/private/var/mobile/Applications/", rpath, 33) == 0) {
+			  int apath_len = sizeof(APPLICATION_PATH) - 1; // get rid of the \0
+				if (strncmp(APPLICATION_PATH, rpath, apath_len) == 0) {
 					printf("[-] Failed opening. Most probably a sandbox issue. Trying something different.\n");
-					
 					/* create new name */
-					strlcpy(npath, "/private/var/mobile/Applications/", sizeof(npath));
-					tmp = strchr(rpath+33, '/');
+					strlcpy(npath, APPLICATION_PATH, sizeof(npath));
+					tmp = strchr(rpath+apath_len, '/');
 					if (tmp == NULL) {
 						printf("[-] Unexpected error with filename.\n");
 						_exit(1);
 					}
 					tmp++;
 					*tmp++ = 0;
-					strlcat(npath, rpath+33, sizeof(npath));
+					strlcat(npath, rpath+apath_len, sizeof(npath));
 					strlcat(npath, "tmp/", sizeof(npath));
 					strlcat(npath, buffer, sizeof(npath));
+					
 					printf("[+] Opening %s for writing.\n", npath);
 					outfd = open(npath, O_RDWR|O_CREAT|O_TRUNC, 0644);
 				}
